@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import Image from "next/image"
-import { Camera, ImageUp, TriangleAlert, X } from "lucide-react"
+import { Camera, ImageUp, LoaderCircle, TriangleAlert, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -10,18 +10,59 @@ type Props = {
   onPhotoChange: (photo: string | null) => void
   recognitionFailed: boolean
   highlight: boolean
+  isAnalyzing?: boolean
+  recognizedIngredients?: string[]
 }
 
 const SAMPLE_PHOTO = "/images/fridge-ingredients.png"
 
-export function PhotoDropzone({ photo, onPhotoChange, recognitionFailed, highlight }: Props) {
+export function PhotoDropzone({
+  photo,
+  onPhotoChange,
+  recognitionFailed,
+  highlight,
+  isAnalyzing = false,
+  recognizedIngredients = [],
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
-  function readFile(file: File | undefined) {
+  // 클라이언트 이미지 최적화 (Canvas를 통한 리사이즈 및 경량화)
+  function processAndSetImage(file: File | undefined) {
     if (!file || !file.type.startsWith("image/")) return
+
     const reader = new FileReader()
-    reader.onload = () => onPhotoChange(String(reader.result))
+    reader.onload = (e) => {
+      const img = new window.Image()
+      img.onload = () => {
+        const canvas = document.createElement("canvas")
+        const maxDim = 1200
+        let width = img.width
+        let height = img.height
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width)
+            width = maxDim
+          } else {
+            width = Math.round((width * maxDim) / height)
+            height = maxDim
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height)
+          const optimizedDataUrl = canvas.toDataURL("image/jpeg", 0.85)
+          onPhotoChange(optimizedDataUrl)
+        } else {
+          onPhotoChange(String(e.target?.result))
+        }
+      }
+      img.src = String(e.target?.result)
+    }
     reader.readAsDataURL(file)
   }
 
@@ -31,8 +72,18 @@ export function PhotoDropzone({ photo, onPhotoChange, recognitionFailed, highlig
         <h2 id="photo-heading" className="font-serif text-lg font-bold">
           1. 냉장고 사진
         </h2>
-        {photo && !recognitionFailed && (
-          <span className="text-xs text-accent">재료 8개 인식 완료</span>
+        {isAnalyzing ? (
+          <span className="flex items-center gap-1.5 text-xs text-primary">
+            <LoaderCircle className="size-3.5 animate-spin" />
+            식재료 분석 중...
+          </span>
+        ) : (
+          photo &&
+          !recognitionFailed && (
+            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              재료 {recognizedIngredients.length > 0 ? recognizedIngredients.length : 8}개 인식 완료
+            </span>
+          )
         )}
       </div>
 
@@ -46,7 +97,7 @@ export function PhotoDropzone({ photo, onPhotoChange, recognitionFailed, highlig
           onDrop={(e) => {
             e.preventDefault()
             setDragging(false)
-            readFile(e.dataTransfer.files?.[0])
+            processAndSetImage(e.dataTransfer.files?.[0])
           }}
           className={cn(
             "relative flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-border bg-card px-6 py-10 text-center transition-all duration-300",
@@ -101,12 +152,12 @@ export function PhotoDropzone({ photo, onPhotoChange, recognitionFailed, highlig
             accept="image/*"
             capture="environment"
             className="sr-only"
-            onChange={(e) => readFile(e.target.files?.[0])}
+            onChange={(e) => processAndSetImage(e.target.files?.[0])}
           />
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <div className="flex gap-3 rounded-2xl border border-border bg-card p-3">
+          <div className="flex gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs">
             <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-muted">
               <Image
                 src={photo || "/placeholder.svg"}
@@ -119,19 +170,30 @@ export function PhotoDropzone({ photo, onPhotoChange, recognitionFailed, highlig
                 )}
                 unoptimized
               />
+              {isAnalyzing && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white">
+                  <LoaderCircle className="size-6 animate-spin" />
+                </div>
+              )}
             </div>
             <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">fridge_today.jpg</p>
-                  {recognitionFailed ? (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                  <p className="truncate text-sm font-medium">냉장고_재료_사진.jpg</p>
+                  {isAnalyzing ? (
+                    <p className="mt-1 text-xs text-primary animate-pulse">
+                      AI가 사진 속 재료를 찾고 있어요...
+                    </p>
+                  ) : recognitionFailed ? (
+                    <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-destructive">
                       <TriangleAlert className="size-3.5" />
                       재료를 알아볼 수 없어요
                     </p>
                   ) : (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      계란 · 두부 · 애호박 · 버섯 · 당근 · 양파 · 대파 · 치즈
+                    <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                      {recognizedIngredients.length > 0
+                        ? recognizedIngredients.join(" · ")
+                        : "계란 · 두부 · 애호박 · 버섯 · 당근 · 양파 · 대파 · 치즈"}
                     </p>
                   )}
                 </div>
@@ -149,7 +211,7 @@ export function PhotoDropzone({ photo, onPhotoChange, recognitionFailed, highlig
                 <button
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  className="animate-in fade-in slide-in-from-bottom-1 inline-flex h-8 w-fit items-center gap-1.5 rounded-full bg-destructive/10 px-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20"
+                  className="animate-in fade-in slide-in-from-bottom-1 inline-flex h-8 w-fit items-center gap-1.5 rounded-full bg-destructive/15 px-3 text-xs font-bold text-destructive transition-colors hover:bg-destructive/25"
                 >
                   <Camera className="size-3.5" />
                   재촬영
@@ -159,8 +221,8 @@ export function PhotoDropzone({ photo, onPhotoChange, recognitionFailed, highlig
           </div>
 
           {recognitionFailed && (
-            <p className="animate-in fade-in text-sm text-destructive">
-              사진 인식에 실패했어요. <span className="font-bold">재촬영</span>이 필요합니다.
+            <p className="animate-in fade-in text-sm font-semibold text-destructive">
+              사진 인식에 실패했어요. <span className="underline underline-offset-2">재촬영</span>이 필요합니다.
             </p>
           )}
 
@@ -170,7 +232,7 @@ export function PhotoDropzone({ photo, onPhotoChange, recognitionFailed, highlig
             accept="image/*"
             capture="environment"
             className="sr-only"
-            onChange={(e) => readFile(e.target.files?.[0])}
+            onChange={(e) => processAndSetImage(e.target.files?.[0])}
           />
         </div>
       )}

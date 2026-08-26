@@ -6,7 +6,7 @@ import { PhotoDropzone } from "@/components/photo-dropzone"
 import { RecipeCard } from "@/components/recipe-card"
 import { ScenarioBar, type Outcome } from "@/components/scenario-bar"
 import { SeasoningPicker } from "@/components/seasoning-picker"
-import { RECIPES } from "@/lib/recipe-data"
+import type { Recipe, RecipeRecommendResponse, VisionRecognitionResponse } from "@/lib/schema"
 import { cn } from "@/lib/utils"
 
 type Status = "idle" | "loading" | "success" | "error"
@@ -14,6 +14,11 @@ type Status = "idle" | "loading" | "success" | "error"
 export default function Page() {
   const [photo, setPhoto] = useState<string | null>(null)
   const [seasonings, setSeasonings] = useState<string[]>([])
+  const [recognizedIngredients, setRecognizedIngredients] = useState<string[]>([
+    "두부", "계란", "대파", "애호박", "버섯", "당근", "양파", "치즈"
+  ])
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false)
   const [recognitionFailed, setRecognitionFailed] = useState(false)
   const [outcome, setOutcome] = useState<Outcome>("success")
 
@@ -23,10 +28,14 @@ export default function Page() {
   const [seasoningWarning, setSeasoningWarning] = useState(false)
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const abortControllerRef = useRef<AbortController | null>(null)
   const resultRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    return () => timers.current.forEach(clearTimeout)
+    return () => {
+      timers.current.forEach(clearTimeout)
+      abortControllerRef.current?.abort()
+    }
   }, [])
 
   useEffect(() => {
@@ -39,8 +48,8 @@ export default function Page() {
     }
   }, [status])
 
-  const photoBlocked = !photo || recognitionFailed
-  const disabled = status === "loading" || recognitionFailed
+  const photoBlocked = !photo || recognitionFailed || isAnalyzingPhoto
+  const disabled = status === "loading" || recognitionFailed || isAnalyzingPhoto
 
   function toggleSeasoning(name: string) {
     setSeasoningWarning(false)
@@ -49,9 +58,52 @@ export default function Page() {
     )
   }
 
-  function run() {
-    if (status === "loading" || recognitionFailed) return
+  async function handlePhotoUpload(newPhoto: string | null) {
+    setPhoto(newPhoto)
+    setPhotoWarning(false)
 
+    if (!newPhoto) {
+      setRecognizedIngredients([])
+      setRecognitionFailed(false)
+      setIsAnalyzingPhoto(false)
+      return
+    }
+
+    // 사진 식재료 분석 API 호출 (Sprint 1)
+    setIsAnalyzingPhoto(true)
+    setRecognitionFailed(false)
+
+    try {
+      const res = await fetch("/api/vision/recognize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: newPhoto,
+          simulateFailure: recognitionFailed,
+        }),
+      })
+
+      const data: VisionRecognitionResponse = await res.json()
+
+      if (data.success && data.isRecognized && data.ingredients.length > 0) {
+        setRecognizedIngredients(data.ingredients)
+        setRecognitionFailed(false)
+      } else {
+        setRecognizedIngredients([])
+        setRecognitionFailed(true)
+      }
+    } catch (err) {
+      console.error("Photo recognition error:", err)
+      setRecognizedIngredients(["두부", "계란", "대파", "애호박", "버섯", "당근", "양파", "치즈"])
+    } finally {
+      setIsAnalyzingPhoto(false)
+    }
+  }
+
+  async function run() {
+    if (status === "loading" || recognitionFailed || isAnalyzingPhoto) return
+
+    // PRD 5-6 & 5-2 유효성 검증
     let invalid = false
     if (!photo) {
       setPhotoWarning(false)
@@ -75,26 +127,64 @@ export default function Page() {
 
     timers.current.forEach(clearTimeout)
     timers.current = []
+    abortControllerRef.current?.abort()
+
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     setStatus("loading")
     setDelayed(false)
 
-    const wait = outcome === "slow" ? 6000 : 1800
-    if (outcome === "slow") {
-      timers.current.push(setTimeout(() => setDelayed(true), 2200))
+    // PRD 5-4: 지연 안내 타이머
+    const delayTimer = setTimeout(() => {
+      setDelayed(true)
+    }, outcome === "slow" ? 2200 : 7000)
+    timers.current.push(delayTimer)
+
+    try {
+      const res = await fetch("/api/recipe/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ingredients: recognizedIngredients.length > 0 ? recognizedIngredients : ["두부", "계란"],
+          seasonings,
+          simulateDelay: outcome === "slow",
+          simulateError: outcome === "error",
+        }),
+        signal: controller.signal,
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+
+      const data: RecipeRecommendResponse = await res.json()
+
+      if (data.success && data.recipes.length > 0) {
+        setRecipes(data.recipes)
+        setStatus("success")
+      } else {
+        setStatus("error")
+      }
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        console.error("Recipe generation failed:", err)
+        setStatus("error")
+      }
+    } finally {
+      clearTimeout(delayTimer)
+      setDelayed(false)
     }
-    timers.current.push(
-      setTimeout(() => {
-        setStatus(outcome === "error" ? "error" : "success")
-        setDelayed(false)
-      }, wait),
-    )
   }
 
   function reset() {
     timers.current.forEach(clearTimeout)
     timers.current = []
+    abortControllerRef.current?.abort()
     setPhoto(null)
     setSeasonings([])
+    setRecognizedIngredients([])
+    setRecipes([])
     setRecognitionFailed(false)
     setStatus("idle")
     setDelayed(false)
@@ -137,13 +227,11 @@ export default function Page() {
 
       <PhotoDropzone
         photo={photo}
-        onPhotoChange={(p) => {
-          setPhoto(p)
-          setPhotoWarning(false)
-          if (p) setRecognitionFailed(false)
-        }}
+        onPhotoChange={handlePhotoUpload}
         recognitionFailed={recognitionFailed}
         highlight={photoWarning}
+        isAnalyzing={isAnalyzingPhoto}
+        recognizedIngredients={recognizedIngredients}
       />
 
       <SeasoningPicker
@@ -177,14 +265,14 @@ export default function Page() {
           )}
         </button>
         {recognitionFailed ? (
-          <p className="text-center text-xs text-destructive">
+          <p className="text-center text-xs font-semibold text-destructive">
             사진 인식 실패로 추천을 진행할 수 없어요. 재촬영 후 다시 시도해주세요.
           </p>
         ) : (
           <p className="text-center text-xs text-muted-foreground">
             {photoBlocked || seasonings.length === 0
               ? "사진과 조미료를 모두 준비하면 더 정확해져요"
-              : `재료 8개 · 조미료 ${seasonings.length}개로 추천할게요`}
+              : `재료 ${recognizedIngredients.length || 8}개 · 조미료 ${seasonings.length}개로 추천할게요`}
           </p>
         )}
       </div>
@@ -223,7 +311,7 @@ export default function Page() {
           <section aria-labelledby="result-heading" className="flex flex-col gap-4">
             <div className="flex items-baseline justify-between gap-2">
               <h2 id="result-heading" className="font-serif text-lg font-bold">
-                오늘의 추천 {RECIPES.length}가지
+                오늘의 추천 {recipes.length}가지
               </h2>
               <button
                 type="button"
@@ -238,7 +326,7 @@ export default function Page() {
               장 볼 때 챙겨주세요.
             </p>
             <div className="grid gap-4 md:grid-cols-2">
-              {RECIPES.map((r, i) => (
+              {recipes.map((r, i) => (
                 <RecipeCard key={r.id} recipe={r} index={i} />
               ))}
             </div>
