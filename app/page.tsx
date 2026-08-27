@@ -79,7 +79,7 @@ export default function Page() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image: newPhoto,
-          simulateFailure: recognitionFailed,
+          simulateFailure: false,
         }),
       })
 

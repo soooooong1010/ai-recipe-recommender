@@ -31,6 +31,11 @@ export const VisionRecognitionResponseSchema = z.object({
   message: z.string().optional(),
 })
 
+export const GeminiVisionRawOutputSchema = z.object({
+  isRecognized: z.boolean().catch(false),
+  ingredients: z.array(z.string()).catch([]),
+})
+
 export type VisionRecognitionResponse = z.infer<typeof VisionRecognitionResponseSchema>
 
 export const IngredientItemSchema = z.object({

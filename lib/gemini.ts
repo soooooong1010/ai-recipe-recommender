@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai"
-import type { Recipe } from "./schema"
+import { GeminiVisionRawOutputSchema, type Recipe } from "./schema"
 import { RECIPES as FALLBACK_RECIPES } from "./recipe-data"
 
 const apiKey = process.env.GEMINI_API_KEY
@@ -82,11 +82,17 @@ export async function extractIngredientsWithVision(
     })
 
     const text = response.text?.trim() || "{}"
-    const parsed = JSON.parse(text)
+    let rawObj: unknown = {}
+    try {
+      rawObj = JSON.parse(text)
+    } catch {
+      rawObj = {}
+    }
 
-    const ingredients = Array.isArray(parsed.ingredients)
-      ? parsed.ingredients.filter((item: unknown): item is string => typeof item === "string" && item.trim().length > 0)
-      : []
+    const parsed = GeminiVisionRawOutputSchema.parse(rawObj)
+    const ingredients = parsed.ingredients
+      .map((i) => i.trim())
+      .filter((i) => i.length > 0)
 
     const isRecognized = Boolean(parsed.isRecognized && ingredients.length > 0)
 
