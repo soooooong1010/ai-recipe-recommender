@@ -59,7 +59,7 @@ export async function extractIngredientsWithVision(
     const cleanBase64 = base64Data.replace(/^data:image\/[a-zA-Z]+;base64,/, "")
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         {
           role: "user",
@@ -168,7 +168,7 @@ export async function generateRecipesWithGemini(
 `
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

@@ -4,12 +4,12 @@
 
 ---
 
-## 📷 1. 식재료 비전 인식 프롬프트 (`Gemini 2.5 Flash`)
+## 📷 1. 식재료 비전 인식 프롬프트 (`Gemini 3.6 Flash`)
 
 ### 1-1. 시스템 파이프라인
 - **입력**: 사용자가 촬영/업로드한 냉장고 사진 (Canvas로 최대 1200px 압축된 Base64 JPEG Image)
 - **출력 포맷**: Strict JSON (`responseMimeType: "application/json"`)
-- **모델**: `gemini-2.5-flash`
+- **모델**: `gemini-3.6-flash`
 
 ### 1-2. 프롬프트 템플릿
 ```text
@@ -38,12 +38,12 @@
 
 ---
 
-## 🍳 2. 맞춤형 레시피 추천 프롬프트 (`Gemini 2.5 Flash`)
+## 🍳 2. 맞춤형 레시피 추천 프롬프트 (`Gemini 3.6 Flash`)
 
 ### 2-1. 시스템 파이프라인
 - **입력**: `ingredients: string[]` (인식된 식재료), `seasonings: string[]` (사용자 선택 조미료)
 - **출력 포맷**: JSON Array (`responseMimeType: "application/json"`)
-- **모델**: `gemini-2.5-flash`
+- **모델**: `gemini-3.6-flash`
 
 ### 2-2. 프롬프트 템플릿
 ```text
