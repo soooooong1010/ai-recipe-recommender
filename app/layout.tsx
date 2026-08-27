@@ -1,10 +1,9 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Gowun_Dodum, Gowun_Batang } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import './globals.css'
 
-const _gowunDodum = Gowun_Dodum({ subsets: ['latin'], weight: '400' })
-const _gowunBatang = Gowun_Batang({ subsets: ['latin'], weight: ['400', '700'] })
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
   title: '냉털 레시피 · 사진 한 장으로 오늘 뭐 먹지 해결',
@@ -33,8 +32,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   colorScheme: 'light dark',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fdf8ef' },
-    { media: '(prefers-color-scheme: dark)', color: '#241f1b' },
+    { media: '(prefers-color-scheme: light)', color: '#f9f9f9' },
+    { media: '(prefers-color-scheme: dark)', color: '#181818' },
   ],
 }
 
@@ -44,7 +43,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className="bg-background">
+    <html lang="ko" className={`bg-background ${inter.variable}`}>
       <body className="font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

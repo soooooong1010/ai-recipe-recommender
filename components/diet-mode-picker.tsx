@@ -19,7 +19,7 @@ export function DietModePicker({ selected, onSelect }: Props) {
     <section aria-labelledby="diet-mode-heading" className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2">
         <h2 id="diet-mode-heading" className="font-serif text-lg font-bold">
-          2. 식단 목표
+          3. 식단 목표
         </h2>
         <span className="text-xs text-muted-foreground">레시피 방향을 설정해요</span>
       </div>
