@@ -54,20 +54,24 @@
 
 ---
 
-## 2. AI 레시피 추천 API (Sprint 2 예정)
+## 2. AI 레시피 추천 API
 
 - **Endpoint**: `POST /api/recipe/recommend`
-- **Description**: 인식된 식재료와 선택된 조미료를 기반으로 1~3개의 맞춤형 레시피를 생성하고 부족한 재료를 식별합니다.
+- **Description**: 인식된 식재료와 선택된 조미료를 기반으로 1~3개의 맞춤형 레시피를 생성하고, 보유하지 않은 부족한 재료(`missing: true`)를 자동으로 마킹합니다.
 
 ### Request Body
 ```json
 {
-  "ingredients": ["두부", "계란", "대파"],
-  "seasonings": ["간장", "소금", "참기름"]
+  "ingredients": ["두부", "계란", "대파", "애호박"],
+  "seasonings": ["간장", "소금", "참기름"],
+  "simulateDelay": false,
+  "simulateError": false
 }
 ```
 
-### Response Body (HTTP 200)
+### Response Body
+
+#### 1) 레시피 추천 성공 (HTTP 200)
 ```json
 {
   "success": true,
@@ -93,6 +97,27 @@
         "대파를 올리고 마무리합니다."
       ]
     }
-  ]
+  ],
+  "message": "맞춤 레시피 1개 생성 완료"
+}
+```
+
+#### 2) 필수 재료 미전달 오류 (HTTP 400)
+```json
+{
+  "success": false,
+  "recipes": [],
+  "errorCode": "GENERATION_FAILED",
+  "message": "식재료가 최소 1개 이상 필요합니다."
+}
+```
+
+#### 3) 서버 및 타임아웃 오류 (HTTP 500)
+```json
+{
+  "success": false,
+  "recipes": [],
+  "errorCode": "SERVER_ERROR",
+  "message": "레시피를 불러오지 못했습니다. 다시 시도해주세요"
 }
 ```
