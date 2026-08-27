@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 import { LoaderCircle, RotateCcw, Sparkles, TriangleAlert, Utensils } from "lucide-react"
+import { DietModePicker } from "@/components/diet-mode-picker"
 import { PhotoDropzone } from "@/components/photo-dropzone"
 import { RecipeCard } from "@/components/recipe-card"
 import { ScenarioBar, type Outcome } from "@/components/scenario-bar"
 import { SeasoningPicker } from "@/components/seasoning-picker"
-import type { Recipe, RecipeRecommendResponse, VisionRecognitionResponse } from "@/lib/schema"
+import type { DietMode, Recipe, RecipeRecommendResponse, VisionRecognitionResponse } from "@/lib/schema"
 import { cn } from "@/lib/utils"
 
 type Status = "idle" | "loading" | "success" | "error"
@@ -26,6 +27,8 @@ export default function Page() {
   const [delayed, setDelayed] = useState(false)
   const [photoWarning, setPhotoWarning] = useState(false)
   const [seasoningWarning, setSeasoningWarning] = useState(false)
+  const [isDarkImage, setIsDarkImage] = useState(false)
+  const [dietMode, setDietMode] = useState<DietMode>("일반")
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -58,9 +61,10 @@ export default function Page() {
     )
   }
 
-  async function handlePhotoUpload(newPhoto: string | null) {
+  async function handlePhotoUpload(newPhoto: string | null, isDark?: boolean) {
     setPhoto(newPhoto)
     setPhotoWarning(false)
+    setIsDarkImage(isDark ?? false)
 
     if (!newPhoto) {
       setRecognizedIngredients([])
@@ -148,6 +152,7 @@ export default function Page() {
         body: JSON.stringify({
           ingredients: recognizedIngredients.length > 0 ? recognizedIngredients : ["두부", "계란"],
           seasonings,
+          dietMode,
           simulateDelay: outcome === "slow",
           simulateError: outcome === "error",
         }),
@@ -186,6 +191,7 @@ export default function Page() {
     setRecognizedIngredients([])
     setRecipes([])
     setRecognitionFailed(false)
+    setIsDarkImage(false)
     setStatus("idle")
     setDelayed(false)
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -232,6 +238,7 @@ export default function Page() {
         highlight={photoWarning}
         isAnalyzing={isAnalyzingPhoto}
         recognizedIngredients={recognizedIngredients}
+        isDarkImage={isDarkImage}
       />
 
       <SeasoningPicker
@@ -239,6 +246,8 @@ export default function Page() {
         onToggle={toggleSeasoning}
         highlight={seasoningWarning}
       />
+
+      <DietModePicker selected={dietMode} onSelect={setDietMode} />
 
       <div className="flex flex-col gap-2">
         <button

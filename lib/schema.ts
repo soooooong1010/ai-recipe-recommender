@@ -17,6 +17,9 @@ export const SEASONINGS_LIST = [
 
 export type SeasoningName = (typeof SEASONINGS_LIST)[number]
 
+export const DIET_MODES = ["일반", "다이어트", "고단백"] as const
+export type DietMode = (typeof DIET_MODES)[number]
+
 export const RecognizedIngredientSchema = z.object({
   name: z.string().min(1, "재료명이 비어있을 수 없습니다"),
   confidence: z.number().optional(),

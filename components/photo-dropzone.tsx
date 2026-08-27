@@ -7,11 +7,12 @@ import { cn } from "@/lib/utils"
 
 type Props = {
   photo: string | null
-  onPhotoChange: (photo: string | null) => void
+  onPhotoChange: (photo: string | null, isDark?: boolean) => void
   recognitionFailed: boolean
   highlight: boolean
   isAnalyzing?: boolean
   recognizedIngredients?: string[]
+  isDarkImage?: boolean
 }
 
 const SAMPLE_PHOTO = "/images/fridge-ingredients.png"
@@ -23,11 +24,42 @@ export function PhotoDropzone({
   highlight,
   isAnalyzing = false,
   recognizedIngredients = [],
+  isDarkImage = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
-  // 클라이언트 이미지 최적화 (Canvas를 통한 리사이즈 및 경량화)
+  // 이미지 평균 밝기를 계산합니다 (0~255)
+  function calcAverageBrightness(ctx: CanvasRenderingContext2D, w: number, h: number): number {
+    const data = ctx.getImageData(0, 0, w, h).data
+    let sum = 0
+    const total = data.length / 4
+    for (let i = 0; i < data.length; i += 4) {
+      sum += (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114)
+    }
+    return sum / total
+  }
+
+  // Canvas에 auto-brightness/contrast 보정을 적용합니다
+  function applyAutoContrast(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    const imageData = ctx.getImageData(0, 0, w, h)
+    const data = imageData.data
+    let min = 255, max = 0
+    for (let i = 0; i < data.length; i += 4) {
+      const lum = (data[i] + data[i + 1] + data[i + 2]) / 3
+      if (lum < min) min = lum
+      if (lum > max) max = lum
+    }
+    const range = max - min || 1
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = Math.min(255, ((data[i] - min) / range) * 255)
+      data[i + 1] = Math.min(255, ((data[i + 1] - min) / range) * 255)
+      data[i + 2] = Math.min(255, ((data[i + 2] - min) / range) * 255)
+    }
+    ctx.putImageData(imageData, 0, 0)
+  }
+
+  // 클라이언트 이미지 최적화 (Canvas를 통한 리사이즈, 자동 밝기/대비 보정)
   function processAndSetImage(file: File | undefined) {
     if (!file || !file.type.startsWith("image/")) return
 
@@ -55,16 +87,22 @@ export function PhotoDropzone({
         const ctx = canvas.getContext("2d")
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height)
+          // 자동 밝기 보정: 어두운 사진의 식재료 인식률 향상
+          const brightness = calcAverageBrightness(ctx, width, height)
+          if (brightness < 80) {
+            applyAutoContrast(ctx, width, height)
+          }
           const optimizedDataUrl = canvas.toDataURL("image/jpeg", 0.85)
-          onPhotoChange(optimizedDataUrl)
+          onPhotoChange(optimizedDataUrl, brightness < 60)
         } else {
-          onPhotoChange(String(e.target?.result))
+          onPhotoChange(String(e.target?.result), false)
         }
       }
       img.src = String(e.target?.result)
     }
     reader.readAsDataURL(file)
   }
+
 
   return (
     <section aria-labelledby="photo-heading" className="flex flex-col gap-3">
@@ -188,6 +226,11 @@ export function PhotoDropzone({
                     <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-destructive">
                       <TriangleAlert className="size-3.5" />
                       재료를 알아볼 수 없어요
+                    </p>
+                  ) : isDarkImage ? (
+                    <p className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-500">
+                      <TriangleAlert className="size-3.5" />
+                      사진이 어두워 자동 보정했어요. 인식률이 낮으면 밝은 곳에서 재촬영해주세요.
                     </p>
                   ) : (
                     <p className="mt-1 text-xs text-muted-foreground line-clamp-2">

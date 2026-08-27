@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateRecipesWithGemini } from "@/lib/gemini"
-import { RecipeRecommendResponse } from "@/lib/schema"
+import { type DietMode, RecipeRecommendResponse } from "@/lib/schema"
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     const {
       ingredients = [],
       seasonings = [],
+      dietMode = "일반",
       simulateDelay = false,
       simulateError = false,
     } = body || {}
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
       await new Promise((res) => setTimeout(res, 4000))
     }
 
-    const recipes = await generateRecipesWithGemini(ingredients, seasonings)
+    const recipes = await generateRecipesWithGemini(ingredients, seasonings, dietMode as DietMode)
 
     const successRes: RecipeRecommendResponse = {
       success: true,

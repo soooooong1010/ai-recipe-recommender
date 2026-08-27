@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai"
-import { GeminiVisionRawOutputSchema, type Recipe } from "./schema"
+import { GeminiVisionRawOutputSchema, type DietMode, type Recipe } from "./schema"
 import { RECIPES as FALLBACK_RECIPES } from "./recipe-data"
 
 const apiKey = process.env.GEMINI_API_KEY
@@ -115,6 +115,7 @@ export async function extractIngredientsWithVision(
 export async function generateRecipesWithGemini(
   ingredients: string[],
   seasonings: string[],
+  dietMode: DietMode = "일반",
 ): Promise<Recipe[]> {
   const ai = getGeminiClient()
 
@@ -125,9 +126,18 @@ export async function generateRecipesWithGemini(
   }
 
   try {
+    const dietInstruction =
+      dietMode === "다이어트"
+        ? "[식단 목표] 사용자는 다이어트 중입니다. 500kcal 이하의 저칼로리 레시피를 우선 추천하고, 칼로리를 최소화하는 조리법을 선택하세요."
+        : dietMode === "고단백"
+        ? "[식단 목표] 사용자는 고단백 식단이 목표입니다. 닭가슴살·두부·계란·콩류 등 단백질이 높은 재료를 최대한 활용하고, 포만감이 높은 레시피를 추천하세요."
+        : ""
+
     const prompt = `
 당신은 자취생과 식단 관리자를 위한 전문 AI 요리사입니다.
 사용자가 현재 보유하고 있는 식재료 및 조미료를 기반으로, 간편하게 만들 수 있는 현실적인 요리 레시피를 1~3개 추천해주세요.
+${dietInstruction ? `
+${dietInstruction}` : ""}
 
 [사용자 보유 재료]
 - 식재료: ${ingredients.join(", ") || "없음"}
