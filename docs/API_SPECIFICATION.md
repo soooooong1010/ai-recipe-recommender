@@ -64,10 +64,13 @@
 {
   "ingredients": ["두부", "계란", "대파", "애호박"],
   "seasonings": ["간장", "소금", "참기름"],
+  "dietMode": "일반",
   "simulateDelay": false,
   "simulateError": false
 }
 ```
+
+- `dietMode` (optional, default `"일반"`): `"일반" | "다이어트" | "고단백"`. `"다이어트"`는 저칼로리(500kcal 이하) 레시피를 우선하고, `"고단백"`은 고단백 재료 활용 레시피를 우선합니다. 유효하지 않은 값이 전달되면 서버는 `"일반"`으로 안전하게 대체합니다.
 
 ### Response Body
 

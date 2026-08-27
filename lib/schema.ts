@@ -63,6 +63,7 @@ export type Ingredient = z.infer<typeof IngredientItemSchema>
 export const RecipeRecommendRequestSchema = z.object({
   ingredients: z.array(z.string()).min(1, "식재료가 최소 1개 이상 인식되어야 합니다"),
   seasonings: z.array(z.string()),
+  dietMode: z.enum(DIET_MODES).optional().default("일반"),
 })
 
 export type RecipeRecommendRequest = z.infer<typeof RecipeRecommendRequestSchema>

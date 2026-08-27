@@ -134,6 +134,23 @@ gantt
 
 ---
 
+### ✨ Sprint 6: 식단 목표 모드 및 저조도 사진 보정 (PRD 범위 외 추가 개선)
+> **목표**: 사용자별 식단 목표에 맞춘 레시피 추천과, 어두운 환경에서 촬영한 사진의 인식률 저하 문제 완화
+
+- [x] **6.1 식단 목표 선택 컴포넌트 (`DietModePicker`)**
+  - 일반 / 다이어트 / 고단백 3종 라디오그룹 UI (`components/diet-mode-picker.tsx`)
+  - 선택된 `dietMode`를 레시피 추천 요청에 포함하여 Gemini 프롬프트 지시문 분기 (`lib/gemini.ts`)
+  - `lib/schema.ts`에 `DIET_MODES`/`DietMode` 타입 및 `RecipeRecommendRequestSchema.dietMode` 검증 필드 추가 완료
+  - API 라우트에서 유효하지 않은 `dietMode` 값은 `"일반"`으로 안전하게 대체 처리
+- [x] **6.2 저조도 사진 자동 밝기/대비 보정**
+  - `components/photo-dropzone.tsx`: Canvas 기반 평균 밝기 계산 후 임계값(80) 이하 시 auto-contrast 보정 적용
+  - 밝기 60 이하(매우 어두운 사진)인 경우 사용자에게 보정 안내 문구 노출 및 재촬영 유도
+- [x] **6.3 문서 정합성 보완**
+  - `docs/API_SPECIFICATION.md`에 `dietMode` 요청 필드 명세 추가
+  - `docs/QA_CHECKLIST.md`에 신규 기능 QA 항목 추가
+
+---
+
 ## 📁 4. `docs/` 디렉토리 관리 가이드
 
 향후 개발 과정에서 생기는 세부 문서들은 본 `docs/` 디렉토리 아래에 체계적으로 기록합니다.
